@@ -1,9 +1,133 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>NGageApp</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Global Agile Training — Official SAFe® Certification</title>
+  <meta name="description" content="Official SAFe® certification training for working project managers. Live remote, small cohorts, exam voucher included. US, EU, India."/>
+  <link rel="stylesheet" href="styles.css"/>
+  <style>
+    .hero { min-height: 100vh; background: var(--navy); display: flex; align-items: center; padding-top: 68px; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: -10%; right: -5%; width: 700px; height: 700px; border: 1px solid rgba(200,145,58,0.07); border-radius: 50%; pointer-events: none; }
+    .hero::after  { content: ''; position: absolute; top: 8%; right: 8%; width: 480px; height: 480px; border: 1px solid rgba(200,145,58,0.05); border-radius: 50%; pointer-events: none; }
+    .hero-inner { max-width: 1200px; margin: 0 auto; padding: 5rem 2rem; display: grid; grid-template-columns: 1fr 420px; gap: 4rem; align-items: center; width: 100%; }
+    .badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(200,145,58,0.12); border: 1px solid rgba(200,145,58,0.35); color: var(--gold-lt); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; padding: 0.35rem 0.85rem; border-radius: 2px; margin-bottom: 1.75rem; }
+    .badge-dot { width: 6px; height: 6px; background: var(--gold); border-radius: 50%; }
+    h1 { font-weight: 600; font-size: clamp(1.8rem, 4.5vw, 3.2rem); line-height: 1.1; color: var(--white); letter-spacing: -0.02em; margin-bottom: 1.5rem; }
+    .hero-sub { font-size: 1.05rem; font-weight: 300; line-height: 1.75; color: rgba(255,255,255,0.65); max-width: 520px; margin-bottom: 2.5rem; }
+    .hero-actions { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .hero-trust { margin-top: 3rem; display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .trust-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.15); }
+    .trust-item { display: flex; flex-direction: column; }
+    .trust-num { font-size: 1.3rem; font-weight: 700; color: var(--gold-lt); line-height: 1; }
+    .trust-label { font-size: 0.65rem; font-weight: 400; color: rgba(255,255,255,0.4); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 3px; }
+    .course-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 2rem; }
+    .card-label { font-size: 0.68rem; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); margin-bottom: 1.25rem; }
+    .course-list { list-style: none; }
+    .course-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .course-item:last-child { border-bottom: none; }
+    .course-name { font-size: 0.9rem; font-weight: 500; color: var(--white); }
+    .course-abbr { font-size: 0.72rem; color: rgba(255,255,255,0.4); display: block; margin-top: 2px; }
+    .course-price { font-size: 1.1rem; font-weight: 700; color: var(--gold-lt); }
+    .card-note { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid rgba(255,255,255,0.07); font-size: 0.75rem; color: rgba(255,255,255,0.4); line-height: 1.6; }
+    .card-note span { color: rgba(200,145,58,0.8); }
+    .card-cta { display: block; margin-top: 1.5rem; text-align: center; background: rgba(200,145,58,0.1); border: 1px solid rgba(200,145,58,0.3); color: var(--gold-lt); font-size: 0.82rem; font-weight: 500; padding: 0.75rem; border-radius: 4px; text-decoration: none; transition: background 0.2s; }
+    .card-cta:hover { background: rgba(200,145,58,0.18); }
+
+    .why { background: var(--offwhite); padding: 6rem 2rem; }
+    .why-inner { max-width: 1200px; margin: 0 auto; }
+    .why-header { margin-bottom: 3rem; }
+    .why-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 2rem; }
+    .why-card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 2rem; }
+    .why-icon { width: 44px; height: 44px; background: rgba(15,30,69,0.06); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; }
+    .why-icon svg { width: 22px; height: 22px; stroke: var(--navy); fill: none; stroke-width: 1.8; }
+    .why-card h3 { font-size: 1.05rem; font-weight: 600; color: var(--navy); margin-bottom: 0.5rem; }
+    .why-card p { font-size: 0.9rem; color: var(--muted); line-height: 1.7; }
+
+    .cta-strip { background: var(--navy); padding: 5rem 2rem; text-align: center; }
+    .cta-strip h2 { font-size: clamp(1.5rem, 3vw, 2.2rem); font-weight: 600; color: var(--white); margin-bottom: 1rem; }
+    .cta-strip p { color: rgba(255,255,255,0.6); font-size: 1rem; margin-bottom: 2rem; }
+    .cta-actions { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+
+    @media (max-width: 900px) {
+      .hero-inner { grid-template-columns: 1fr; padding: 4rem 1.5rem; gap: 3rem; }
+      .why-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
-<body>
-    <h1>Welcome to NGageApp</h1>
-    <p>App content goes here...</p>
+<body class="page">
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <div class="badge"><span class="badge-dot"></span>Official SAFe® Certification Training</div>
+        <h1>Advance Your Career<br/>with Scaled Agile<br/>Certification</h1>
+        <p class="hero-sub">Live, instructor-led SAFe® certification courses for working project managers and agile professionals. Small cohorts. Advanced SPC instructor. Exam voucher included.</p>
+        <div class="hero-actions">
+          <a href="schedule.html" class="btn-primary">View Schedule &amp; Register</a>
+          <a href="courses.html" class="btn-ghost-white">Explore Courses</a>
+        </div>
+        <div class="hero-trust">
+          <div class="trust-item"><span class="trust-num">4</span><span class="trust-label">Certifications</span></div>
+          <div class="trust-divider"></div>
+          <div class="trust-item"><span class="trust-num">20</span><span class="trust-label">Max class size</span></div>
+          <div class="trust-divider"></div>
+          <div class="trust-item"><span class="trust-num">Adv. SPC</span><span class="trust-label">Instructor certified</span></div>
+          <div class="trust-divider"></div>
+          <div class="trust-item"><span class="trust-num">Global</span><span class="trust-label">US · EU · India</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="course-card">
+          <p class="card-label">Available Certifications</p>
+          <ul class="course-list">
+            <li class="course-item"><div><span class="course-name">SAFe Scrum Master</span><span class="course-abbr">SSM</span></div><span class="course-price">$795</span></li>
+            <li class="course-item"><div><span class="course-name">SAFe for Teams</span><span class="course-abbr">SP</span></div><span class="course-price">$695</span></li>
+            <li class="course-item"><div><span class="course-name">Product Owner / Manager</span><span class="course-abbr">POPM</span></div><span class="course-price">$895</span></li>
+            <li class="course-item"><div><span class="course-name">Leading SAFe</span><span class="course-abbr">SA</span></div><span class="course-price">$995</span></li>
+          </ul>
+          <p class="card-note">All courses include live instruction and <span>first SAFe® exam attempt.</span> Pricing in USD.</p>
+          <a href="schedule.html" class="card-cta">View Schedule &amp; Register →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="why">
+    <div class="why-inner">
+      <div class="why-header">
+        <p class="section-label">Why Global Agile Training</p>
+        <h2 class="section-title">Built for working professionals,<br/>not classroom students</h2>
+      </div>
+      <div class="why-grid">
+        <div class="why-card">
+          <div class="why-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+          <h3>Advanced SPC Instructor</h3>
+          <p>Taught by Nishigandha Emde, a Certified Advanced SAFe® Practice Consultant the highest SAFe instructor credential available.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"/></svg></div>
+          <h3>Small Cohorts, Real Learning</h3>
+          <p>Maximum 20 students per class means more time for your questions, real discussion, and an instructor who knows your name.</p>
+        </div>
+        <div class="why-card">
+          <div class="why-icon"><svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5a17.92 17.92 0 01-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418"/></svg></div>
+          <h3>Globally Accessible</h3>
+          <p>Multiple time zones, remote delivery, and USD pricing make this accessible from the US, India, the EU, and beyond.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-strip">
+    <h2>Ready to get certified?</h2>
+    <p>Classes start May 2025. Seats are limited to 20 per session.</p>
+    <div class="cta-actions">
+      <a href="schedule.html" class="btn-primary">View Schedule &amp; Register</a>
+      <a href="contact.html" class="btn-ghost-white">Have a question?</a>
+    </div>
+  </section>
+
+  <script src="nav.js"></script>
 </body>
 </html>
