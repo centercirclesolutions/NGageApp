@@ -89,12 +89,12 @@
 
   /* ══ MEDIA ══ */
   .media{
-    width:100%;height:230px;border-radius:16px;overflow:hidden;
+    width:100%;height:185px;border-radius:16px;overflow:hidden;
     position:relative;display:flex;align-items:center;justify-content:center;
     background:#EEE;flex-shrink:0;
   }
   .media.has-img{display:block;padding:0;}
-  .media.has-img img{width:100%;height:100%;object-fit:cover;display:block;border-radius:16px;}
+  .media.has-img img{width:100%;height:185px;object-fit:cover;display:block;border-radius:16px;}
   .media.emoji{font-size:8rem;}
   .snd-ov{
     position:absolute;inset:0;background:rgba(10,25,40,0.58);border-radius:16px;
@@ -107,6 +107,8 @@
   /* ══ QUESTION & ANSWER BUTTONS ══ */
   .qtxt{font-size:clamp(1.55rem,4vw,2.2rem);font-weight:800;color:var(--text);text-align:center;line-height:1.35;white-space:pre-line;}
   .ans-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;}
+  .ans-extra{display:flex;justify-content:center;width:100%;margin-top:0;}
+  .extra-btn{--btn-color:#888;max-width:320px;width:100%;padding:18px 12px;font-size:clamp(1.1rem,3vw,1.4rem);}
   .abtn{
     padding:26px 12px;font-size:clamp(1.5rem,4.5vw,2.1rem);
     color:white;box-shadow:0 5px 18px rgba(0,0,0,0.18);
@@ -176,9 +178,10 @@
     <div class="step-lbl" id="step-lbl">1/15</div>
   </div>
   <div class="qcard">
-    <div id="media-wrap"></div>
     <div class="qtxt" id="qtxt"></div>
+    <div id="media-wrap"></div>
     <div class="ans-row" id="ans-row"></div>
+    <div class="ans-extra" id="ans-extra"></div>
     <div class="hold-hint">Hold the button to answer ✋</div>
   </div>
 </div>
@@ -207,7 +210,7 @@
 // ══════════════════════════════════════════
 //  VERSION — increment this with each deploy
 // ══════════════════════════════════════════
-const VERSION = '1.0.5';
+const VERSION = '1.0.7';
 console.log(`Dad's App v${VERSION}`);
 document.title = `Dad's Happy Time v${VERSION}`;
 
@@ -526,7 +529,12 @@ function renderStep(){
   const q=game[step], total=game.length;
   document.getElementById('prog-bar').style.width=((step/total)*100)+'%';
   document.getElementById('step-lbl').textContent=(step+1)+'/'+total;
-  document.getElementById('qtxt').textContent=q.q;
+  // Strip trailing question type hints — buttons make them redundant
+  const qText = q.q
+    .replace(/[\n\r]+True or false\??\.?$/i, '')
+    .replace(/[\n\r]+Yes or no\??\.?$/i, '')
+    .trim();
+  document.getElementById('qtxt').textContent=qText;
 
   const wrap=document.getElementById('media-wrap'); wrap.innerHTML='';
   const area=document.createElement('div');
@@ -553,15 +561,29 @@ function renderStep(){
   wrap.appendChild(area);
 
   const row=document.getElementById('ans-row'); row.innerHTML='';
+  const extra=document.getElementById('ans-extra'); extra.innerHTML='';
+
+  // Randomise left/right position 50/50 each question to prevent button bias
+  const flip = Math.random() < 0.5;
+
   if(q.type==='yn'){
-    row.appendChild(makeBtn('<span class="bi">👍</span><span>Yes</span>','abtn yes-btn',()=>{rec(q,'yes');answer();}));
-    row.appendChild(makeBtn('<span class="bi">👎</span><span>No</span>', 'abtn no-btn', ()=>{rec(q,'no'); answer();}));
+    const yBtn=makeBtn('<span class="bi">👍</span><span>Yes</span>','abtn yes-btn',()=>{rec(q,'yes');answer();});
+    const nBtn=makeBtn('<span class="bi">👎</span><span>No</span>', 'abtn no-btn', ()=>{rec(q,'no'); answer();});
+    row.appendChild(flip ? nBtn : yBtn);
+    row.appendChild(flip ? yBtn : nBtn);
+    extra.appendChild(makeBtn('🤷 Don\'t Know','abtn extra-btn',()=>{rec(q,'dk');answer();}));
   } else if(q.type==='tf'){
-    row.appendChild(makeBtn('<span class="bi">✅</span><span>True</span>', 'abtn true-btn', ()=>{rec(q,'true'); answer();}));
-    row.appendChild(makeBtn('<span class="bi">❌</span><span>False</span>','abtn false-btn',()=>{rec(q,'false');answer();}));
+    const tBtn=makeBtn('<span class="bi">✅</span><span>True</span>', 'abtn true-btn', ()=>{rec(q,'true'); answer();});
+    const fBtn=makeBtn('<span class="bi">❌</span><span>False</span>','abtn false-btn',()=>{rec(q,'false');answer();});
+    row.appendChild(flip ? fBtn : tBtn);
+    row.appendChild(flip ? tBtn : fBtn);
+    extra.appendChild(makeBtn('🤷 Don\'t Know','abtn extra-btn',()=>{rec(q,'dk');answer();}));
   } else {
-    row.appendChild(makeBtn(q.a,'abtn ca-btn',()=>{rec(q,'a');answer();}));
-    row.appendChild(makeBtn(q.b,'abtn cb-btn',()=>{rec(q,'b');answer();}));
+    const aBtn=makeBtn(q.a,'abtn ca-btn',()=>{rec(q,'a');answer();});
+    const bBtn=makeBtn(q.b,'abtn cb-btn',()=>{rec(q,'b');answer();});
+    row.appendChild(flip ? bBtn : aBtn);
+    row.appendChild(flip ? aBtn : bBtn);
+    extra.appendChild(makeBtn('👐 Both','abtn extra-btn',()=>{rec(q,'both');answer();}));
   }
 }
 
@@ -597,9 +619,19 @@ function loadSt(){ try{return JSON.parse(localStorage.getItem(STORE))||{};}catch
 function saveSt(s){ localStorage.setItem(STORE,JSON.stringify(s)); }
 function rec(q,side){
   const st=loadSt(),k=q.q.slice(0,40),s=st[k]||{}; s.question=q.q;
-  if(q.type==='tf'){ s.type='fact'; const ok=(side==='true'&&q.ans===true)||(side==='false'&&q.ans===false); s.correct=(s.correct||0)+(ok?1:0); s.wrong=(s.wrong||0)+(ok?0:1); }
-  else if(q.type==='ch'||q.type==='snd'){ s.type='pref'; s.aLabel=q.a; s.bLabel=q.b; s.aCount=(s.aCount||0)+(side==='a'?1:0); s.bCount=(s.bCount||0)+(side==='b'?1:0); s.posL=(s.posL||0)+(side==='a'?1:0); s.posR=(s.posR||0)+(side==='b'?1:0); }
-  else{ s.type='yn'; s.yes=(s.yes||0)+(side==='yes'?1:0); s.no=(s.no||0)+(side==='no'?1:0); s.posL=(s.posL||0)+(side==='yes'?1:0); s.posR=(s.posR||0)+(side==='no'?1:0); }
+  if(q.type==='tf'){
+    s.type='fact';
+    if(side==='dk'){ s.dk=(s.dk||0)+1; }
+    else{ const ok=(side==='true'&&q.ans===true)||(side==='false'&&q.ans===false); s.correct=(s.correct||0)+(ok?1:0); s.wrong=(s.wrong||0)+(ok?0:1); }
+  } else if(q.type==='ch'||q.type==='snd'){
+    s.type='pref'; s.aLabel=q.a; s.bLabel=q.b;
+    if(side==='both'){ s.both=(s.both||0)+1; }
+    else{ s.aCount=(s.aCount||0)+(side==='a'?1:0); s.bCount=(s.bCount||0)+(side==='b'?1:0); s.posL=(s.posL||0)+(side==='a'?1:0); s.posR=(s.posR||0)+(side==='b'?1:0); }
+  } else {
+    s.type='yn';
+    if(side==='dk'){ s.dk=(s.dk||0)+1; }
+    else{ s.yes=(s.yes||0)+(side==='yes'?1:0); s.no=(s.no||0)+(side==='no'?1:0); s.posL=(s.posL||0)+(side==='yes'?1:0); s.posR=(s.posR||0)+(side==='no'?1:0); }
+  }
   st[k]=s; saveSt(st);
 }
 function clearStats(){ if(confirm('Clear all stats?')){localStorage.removeItem(STORE);renderStats();} }
@@ -611,11 +643,11 @@ function renderStats(){
   let h='';
   if(warn){const sd=lp>=75?'left':'right';h+=`<div class="pat-warn">⚠️ Pattern: ${lp>=75?lp:100-lp}% of answers chose the <strong>${sd} button</strong>. Worth watching.</div>`;}
   const facts=ks.filter(k=>st[k].type==='fact');
-  if(facts.length){ h+=`<div class="st-sec"><h3>✅ True / False</h3>`; facts.forEach(k=>{ const s=st[k],t=(s.correct||0)+(s.wrong||0),p=t?Math.round((s.correct||0)/t*100):0; h+=`<div class="st-card"><div class="sq">${s.question.split('\n')[0]}${t>=2&&p<50?'<span class="rev-bdg">Revisit</span>':''}</div><div class="bar-wrap"><div class="bar bar-g" style="width:${p}%"></div></div><div class="sa">✅ ${s.correct||0} correct &nbsp;|&nbsp; ❌ ${s.wrong||0} wrong &nbsp;|&nbsp; ${p}%</div></div>`; }); h+=`</div>`; }
+  if(facts.length){ h+=`<div class="st-sec"><h3>✅ True / False</h3>`; facts.forEach(k=>{ const s=st[k],t=(s.correct||0)+(s.wrong||0),p=t?Math.round((s.correct||0)/t*100):0; h+=`<div class="st-card"><div class="sq">${s.question.split('\n')[0]}${t>=2&&p<50?'<span class="rev-bdg">Revisit</span>':''}</div><div class="bar-wrap"><div class="bar bar-g" style="width:${p}%"></div></div><div class="sa">✅ ${s.correct||0} correct &nbsp;|&nbsp; ❌ ${s.wrong||0} wrong${s.dk?` &nbsp;|&nbsp; 🤷 ${s.dk} don't know`:''} &nbsp;|&nbsp; ${p}%</div></div>`; }); h+=`</div>`; }
   const prefs=ks.filter(k=>st[k].type==='pref');
-  if(prefs.length){ h+=`<div class="st-sec"><h3>🔄 Choices & Sounds</h3>`; prefs.forEach(k=>{ const s=st[k],t=(s.aCount||0)+(s.bCount||0),ap=t?Math.round((s.aCount||0)/t*100):50,pL=s.posL||0,pR=s.posR||0,pT=pL+pR,bias=pT>=4&&(pL/pT>=0.8||pR/pT>=0.8); h+=`<div class="st-card"><div class="sq">${s.question||k}${bias?'<span class="rev-bdg">Same side?</span>':''}</div><div class="bar-wrap"><div class="bar bar-o" style="width:${ap}%"></div></div><div class="sa">${s.aLabel||'Left'}: ${s.aCount||0} &nbsp;|&nbsp; ${s.bLabel||'Right'}: ${s.bCount||0}</div><div class="sa" style="margin-top:3px">Button — Left: ${pL} &nbsp;|&nbsp; Right: ${pR}</div></div>`; }); h+=`</div>`; }
+  if(prefs.length){ h+=`<div class="st-sec"><h3>🔄 Choices & Sounds</h3>`; prefs.forEach(k=>{ const s=st[k],t=(s.aCount||0)+(s.bCount||0),ap=t?Math.round((s.aCount||0)/t*100):50,pL=s.posL||0,pR=s.posR||0,pT=pL+pR,bias=pT>=4&&(pL/pT>=0.8||pR/pT>=0.8); h+=`<div class="st-card"><div class="sq">${s.question||k}${bias?'<span class="rev-bdg">Same side?</span>':''}</div><div class="bar-wrap"><div class="bar bar-o" style="width:${ap}%"></div></div><div class="sa">${s.aLabel||'Left'}: ${s.aCount||0} &nbsp;|&nbsp; ${s.bLabel||'Right'}: ${s.bCount||0}${s.both?` &nbsp;|&nbsp; 👐 Both: ${s.both}`:''}</div></div>`; }); h+=`</div>`; }
   const yns=ks.filter(k=>st[k].type==='yn');
-  if(yns.length){ h+=`<div class="st-sec"><h3>👍 Yes / No</h3>`; yns.forEach(k=>{ const s=st[k],t=(s.yes||0)+(s.no||0),yp=t?Math.round((s.yes||0)/t*100):50,pL=s.posL||0,pR=s.posR||0,pT=pL+pR,bias=pT>=4&&(pL/pT>=0.8||pR/pT>=0.8); h+=`<div class="st-card"><div class="sq">${s.question}${bias?'<span class="rev-bdg">Same side?</span>':''}</div><div class="bar-wrap"><div class="bar bar-g" style="width:${yp}%"></div></div><div class="sa">👍 Yes: ${s.yes||0} &nbsp;|&nbsp; 👎 No: ${s.no||0}</div><div class="sa" style="margin-top:3px">Button — Left: ${pL} &nbsp;|&nbsp; Right: ${pR}</div></div>`; }); h+=`</div>`; }
+  if(yns.length){ h+=`<div class="st-sec"><h3>👍 Yes / No</h3>`; yns.forEach(k=>{ const s=st[k],t=(s.yes||0)+(s.no||0),yp=t?Math.round((s.yes||0)/t*100):50,pL=s.posL||0,pR=s.posR||0,pT=pL+pR,bias=pT>=4&&(pL/pT>=0.8||pR/pT>=0.8); h+=`<div class="st-card"><div class="sq">${s.question}${bias?'<span class="rev-bdg">Same side?</span>':''}</div><div class="bar-wrap"><div class="bar bar-g" style="width:${yp}%"></div></div><div class="sa">👍 Yes: ${s.yes||0} &nbsp;|&nbsp; 👎 No: ${s.no||0}${s.dk?` &nbsp;|&nbsp; 🤷 ${s.dk} don't know`:''}</div></div>`; }); h+=`</div>`; }
   body.innerHTML=h;
 }
 
