@@ -90,9 +90,10 @@
   /* ══ MEDIA ══ */
   .media{
     width:100%;height:230px;border-radius:16px;overflow:hidden;
-    position:relative;display:flex;align-items:center;justify-content:center;background:#EEE;
+    position:relative;display:flex;align-items:center;justify-content:center;
+    background:#EEE;flex-shrink:0;
   }
-  .media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .media img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;}
   .media.emoji{font-size:8rem;}
   .snd-ov{
     position:absolute;inset:0;background:rgba(10,25,40,0.58);border-radius:16px;
@@ -523,13 +524,12 @@ function renderStep(){
   const area=document.createElement('div');
   if(q.imgPath){
     area.className='media';
-    area.style.background='#EEE';
-    // Add img directly — CSS handles object-fit cover via .media img rule
+    area.style.cssText='background:#EEE;position:relative;'; // position:relative needed for absolute img child
     const img=new Image();
-    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+    img.style.cssText='position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;object-fit:cover;';
     img.alt='';
     img.onerror=()=>{
-      area.innerHTML='';
+      area.style.cssText='';
       setEmoji(area,q);
       if(q.type==='snd') addSndOv(area,q);
     };
@@ -537,7 +537,7 @@ function renderStep(){
       if(q.type==='snd') addSndOv(area,q);
     };
     area.appendChild(img);
-    img.src=q.imgPath; // set src after appending so onerror fires correctly
+    img.src=q.imgPath;
   } else {
     setEmoji(area,q);
     if(q.type==='snd') addSndOv(area,q);
