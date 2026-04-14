@@ -210,7 +210,7 @@
 // ══════════════════════════════════════════
 //  VERSION — increment this with each deploy
 // ══════════════════════════════════════════
-const VERSION = '1.0.7';
+const VERSION = '1.0.8';
 console.log(`Dad's App v${VERSION}`);
 document.title = `Dad's Happy Time v${VERSION}`;
 
@@ -508,7 +508,7 @@ function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.rando
 // ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
-let game=[], step=0, blocked=false;
+let game=[], step=0, blocked=false, currentSubjectKey=null, appDefaultMode='great';
 
 // ══════════════════════════════════════════
 //  SCREENS
@@ -519,7 +519,7 @@ function showScreen(id){
   window.scrollTo(0,0);
 }
 function goHome(){ document.getElementById('cel-wrap').style.display='none'; blocked=false; showScreen('screen-home'); }
-function startGame(sub){ game=shuffle([...SUBJECTS[sub].qs]); step=0; blocked=false; showScreen('screen-game'); renderStep(); }
+function startGame(sub){ currentSubjectKey=sub; game=shuffle([...SUBJECTS[sub].qs]); step=0; blocked=false; showScreen('screen-game'); renderStep(); }
 function showStats(){ renderStats(); showScreen('screen-stats'); }
 
 // ══════════════════════════════════════════
@@ -567,23 +567,23 @@ function renderStep(){
   const flip = Math.random() < 0.5;
 
   if(q.type==='yn'){
-    const yBtn=makeBtn('<span class="bi">👍</span><span>Yes</span>','abtn yes-btn',()=>{rec(q,'yes');answer();});
-    const nBtn=makeBtn('<span class="bi">👎</span><span>No</span>', 'abtn no-btn', ()=>{rec(q,'no'); answer();});
+    const yBtn=makeBtn('<span class="bi">👍</span><span>Yes</span>','abtn yes-btn',()=>{rec(q,'yes');answer('yes',q);});
+    const nBtn=makeBtn('<span class="bi">👎</span><span>No</span>', 'abtn no-btn', ()=>{rec(q,'no'); answer('no',q);});
     row.appendChild(flip ? nBtn : yBtn);
     row.appendChild(flip ? yBtn : nBtn);
-    extra.appendChild(makeBtn('🤷 Don\'t Know','abtn extra-btn',()=>{rec(q,'dk');answer();}));
+    extra.appendChild(makeBtn('🤷 Don\'t Know','abtn extra-btn',()=>{rec(q,'dk');answer('dk',q);}));
   } else if(q.type==='tf'){
-    const tBtn=makeBtn('<span class="bi">✅</span><span>True</span>', 'abtn true-btn', ()=>{rec(q,'true'); answer();});
-    const fBtn=makeBtn('<span class="bi">❌</span><span>False</span>','abtn false-btn',()=>{rec(q,'false');answer();});
+    const tBtn=makeBtn('<span class="bi">✅</span><span>True</span>', 'abtn true-btn', ()=>{rec(q,'true'); answer('true',q);});
+    const fBtn=makeBtn('<span class="bi">❌</span><span>False</span>','abtn false-btn',()=>{rec(q,'false');answer('false',q);});
     row.appendChild(flip ? fBtn : tBtn);
     row.appendChild(flip ? tBtn : fBtn);
-    extra.appendChild(makeBtn('🤷 Don\'t Know','abtn extra-btn',()=>{rec(q,'dk');answer();}));
+    extra.appendChild(makeBtn('🤷 Don\'t Know','abtn extra-btn',()=>{rec(q,'dk');answer('dk',q);}));
   } else {
-    const aBtn=makeBtn(q.a,'abtn ca-btn',()=>{rec(q,'a');answer();});
-    const bBtn=makeBtn(q.b,'abtn cb-btn',()=>{rec(q,'b');answer();});
+    const aBtn=makeBtn(q.a,'abtn ca-btn',()=>{rec(q,'a');answer('a',q);});
+    const bBtn=makeBtn(q.b,'abtn cb-btn',()=>{rec(q,'b');answer('b',q);});
     row.appendChild(flip ? bBtn : aBtn);
     row.appendChild(flip ? aBtn : bBtn);
-    extra.appendChild(makeBtn('👐 Both','abtn extra-btn',()=>{rec(q,'both');answer();}));
+    extra.appendChild(makeBtn('👐 Both','abtn extra-btn',()=>{rec(q,'both');answer('both',q);}));
   }
 }
 
@@ -603,12 +603,58 @@ function addSndOv(area,q){
 }
 
 // ══════════════════════════════════════════
+//  MODE — question overrides subject overrides global default
+// ══════════════════════════════════════════
+function getMode(q){
+  if(q && q.mode) return q.mode;
+  if(currentSubjectKey && SUBJECTS[currentSubjectKey]?.mode) return SUBJECTS[currentSubjectKey].mode;
+  return appDefaultMode || 'great';
+}
+
+// ══════════════════════════════════════════
 //  ANSWER
 // ══════════════════════════════════════════
-function answer(){
+function answer(side, q){
   if(blocked) return; blocked=true;
+
+  const mode = getMode(q);
+  const isTryAgain = mode === 'tryagain';
+
+  // Try Again mode: if factual question answered incorrectly, prompt retry
+  if(isTryAgain && q && q.type==='tf' && side !== 'dk'){
+    const correct = (side==='true' && q.ans===true) || (side==='false' && q.ans===false);
+    if(!correct){
+      // Record the wrong answer
+      rec(q, side);
+      // Show gentle retry prompt
+      showTryAgain(q);
+      return;
+    }
+  }
+
   showReaction('🌟'); confetti();
   setTimeout(()=>{ step++; blocked=false; if(step>=game.length) celebrate(); else renderStep(); },1000);
+}
+
+function showTryAgain(q){
+  const row  = document.getElementById('ans-row');
+  const extra = document.getElementById('ans-extra');
+
+  // Show gentle message, clear buttons temporarily
+  row.innerHTML='';
+  extra.innerHTML='';
+
+  const msg = document.createElement('div');
+  msg.style.cssText='text-align:center;font-size:1.2rem;font-weight:800;color:#E8650A;padding:12px 0;animation:fadeIn 0.3s ease;';
+  msg.textContent='Have another think… 🤔';
+  row.parentNode.insertBefore(msg, row);
+
+  // Re-enable after 1.5s — re-render the same question (step unchanged)
+  setTimeout(()=>{
+    msg.remove();
+    blocked=false;
+    renderStep();
+  },1500);
 }
 
 // ══════════════════════════════════════════
@@ -700,6 +746,9 @@ async function tryLoadFromR2(){
     const questions = await qRes.json();
 
     if(!manifest || !questions) return;
+
+    // Set global default mode from manifest
+    if(manifest.defaultMode) appDefaultMode = manifest.defaultMode;
 
     // Update app name if set
     if(manifest.appName){
