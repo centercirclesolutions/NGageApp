@@ -14,7 +14,7 @@
     --bg:#FFF8F0;--card:#FFF;--primary:#E8650A;
     --yes:#2E9E5B;--no:#C94040;--blue:#2E6FBF;--purple:#8B5CF6;
     --text:#1A1A1A;--muted:#666;--radius:28px;
-    --shadow:0 8px 32px rgba(0,0,0,0.13);--hold:300ms;
+    --shadow:0 8px 32px rgba(0,0,0,0.13);--hold:80ms;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
   html{height:100%;}
@@ -205,7 +205,7 @@
 // ══════════════════════════════════════════
 //  HOLD LOGIC — single universal function
 // ══════════════════════════════════════════
-const HOLD_MS = 300;
+const HOLD_MS = 80;
 function attachHold(el, cb) {
   let timer=null, active=false;
   function start(e){
@@ -625,27 +625,117 @@ function buildHome(){
 }
 
 // ══════════════════════════════════════════
-//  OPTIONAL REAL ASSETS via manifest.json
+//  WORKER URL — reads published content from R2
+//  Set this to your Cloudflare Worker URL
 // ══════════════════════════════════════════
-async function tryLoadManifest(){
+const WORKER_URL = 'https://dads-app-worker.dadsapp.workers.dev';
+
+// ══════════════════════════════════════════
+//  LOAD FROM R2 via Worker
+//  Fetches manifest.json and questions.json published by the editor.
+//  If not found, falls back to built-in SUBJECTS questions.
+// ══════════════════════════════════════════
+async function tryLoadFromR2(){
   try{
-    const r=await fetch('manifest.json'); if(!r.ok) return;
-    const m=await r.json();
-    Object.entries(m.subjects||{}).forEach(([sub,data])=>{
-      if(!SUBJECTS[sub]) return;
-      const imgs=(data.images||[]).map(f=>`assets/${sub}/images/${f}`);
-      const snds=(data.sounds||[]).map(f=>`assets/${sub}/sounds/${f}`);
-      if(imgs.length){ let ii=0; SUBJECTS[sub].qs.forEach(q=>{ q.imgPath=imgs[ii%imgs.length]; ii++; }); }
-      if(snds.length){ SUBJECTS[sub].qs.filter(q=>q.type==='snd').forEach((q,i)=>{ const a=document.createElement('audio'); a.id='audio-'+q.sound+'-'+sub; a.src=snds[i%snds.length]; a.preload='auto'; document.body.appendChild(a); q.sound=q.sound+'-'+sub; }); }
+    // Fetch manifest and questions in parallel
+    const [mRes, qRes] = await Promise.all([
+      fetch(`${WORKER_URL}/api/manifest`),
+      fetch(`${WORKER_URL}/api/questions`),
+    ]);
+
+    if(!mRes.ok || !qRes.ok) return; // nothing published yet, use defaults
+
+    const manifest  = await mRes.json();
+    const questions = await qRes.json();
+
+    if(!manifest || !questions) return;
+
+    // Update app name if set
+    if(manifest.appName){
+      document.title = manifest.appName;
+    }
+
+    // For each published subject, merge into SUBJECTS
+    Object.entries(manifest.subjects||{}).forEach(([key, data])=>{
+      // If subject doesn't exist in built-ins, create it
+      if(!SUBJECTS[key]){
+        SUBJECTS[key] = { icon: data.icon||'📋', color: data.color||'#888', qs:[] };
+      }
+
+      const sub = SUBJECTS[key];
+
+      // Update icon and colour from editor
+      if(data.icon)  sub.icon  = data.icon;
+      if(data.color) sub.color = data.color;
+      if(data.label) sub.label = data.label;
+      if(data.mode)  sub.mode  = data.mode;
+
+      // If editor has published questions for this subject, use them
+      if(questions[key] && questions[key].length > 0){
+        sub.qs = questions[key];
+      }
+
+      // Patch in asset paths from R2 via Worker
+      const assets = data.assets || {};
+      const imgs = (assets.images||[]).map(f=>`${WORKER_URL}/assets/${key}/images/${f}`);
+      const snds = (assets.sounds||[]).map(f=>`${WORKER_URL}/assets/${key}/sounds/${f}`);
+
+      if(imgs.length){
+        let ii=0;
+        sub.qs.forEach(q=>{ q.imgPath=imgs[ii%imgs.length]; ii++; });
+      }
+
+      if(snds.length){
+        sub.qs.filter(q=>q.type==='snd').forEach((q,i)=>{
+          const a=document.createElement('audio');
+          const soundKey=`${q.sound}-${key}`;
+          a.id='audio-'+soundKey;
+          a.src=snds[i%snds.length];
+          a.preload='auto';
+          document.body.appendChild(a);
+          q.sound=soundKey;
+        });
+      }
+
+      // People questions — add from manifest
+      if(data.people && data.people.length){
+        data.people.forEach(person=>{
+          const personImgs=(person.images||[]).map(f=>`${WORKER_URL}/assets/${key}/people/${f}`);
+          // Add a recognition question per person if not already in questions
+          const alreadyHas=sub.qs.some(q=>q.personId===person.name);
+          if(!alreadyHas){
+            sub.qs.push({
+              type:'yn',emoji:'👤',bg:'#FCE4EC',
+              q:`Do you remember ${person.name}?`,
+              personId:person.name,
+              imgPath: person.avatar || (personImgs[0]||null),
+            });
+          }
+        });
+      }
+
+      // Messages — add video questions
+      if(data.messages && data.messages.length){
+        if(!SUBJECTS.messages) SUBJECTS.messages={ icon:'💌', color:'#8B5CF6', qs:[] };
+        data.messages.forEach(msg=>{
+          SUBJECTS.messages.qs.push({
+            type:'yn', emoji:'💌', bg:'#F3E5F5',
+            q: msg.question || 'Did you enjoy that message?',
+            videoUrl:`${WORKER_URL}/assets/${key}/messages/${msg.file}`,
+            from: msg.from,
+          });
+        });
+      }
     });
-  }catch(e){}
+
+  }catch(e){ console.log('R2 load skipped, using built-in questions:', e.message); }
 }
 
 // ══════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════
 async function init(){
-  await tryLoadManifest();
+  await tryLoadFromR2();
   buildHome();
   attachHold(document.getElementById('btn-stats'),    ()=>showStats());
   attachHold(document.getElementById('btn-back'),     ()=>goHome());
