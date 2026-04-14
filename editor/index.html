@@ -834,7 +834,7 @@ function renderAssetPanel(key, tab) {
     html += `<div class="asset-grid" style="margin-top:14px">`;
     assets.forEach((filename, i) => {
       const assetKey = `assets/${key}/${tab}/${filename}`;
-      const assetUrl = S.workerUrl ? `${S.workerUrl.replace(/\/$/,'')}/assets/${key}/${tab}/${filename}` : '';
+      const assetUrl = S.workerUrl ? `${S.workerUrl.replace(/\/$/,'')}/assets/${key}/${tab}/${encodeURIComponent(filename)}` : '';
       let thumb = icon;
       if (tab === 'images' && assetUrl) {
         thumb = `<img src="${assetUrl}" onerror="this.parentElement.textContent='📷'">`;
@@ -1100,7 +1100,7 @@ function showAddQuestionModal(key, editIndex = -1) {
             🚫
           </div>
           ${images.map(f => {
-            const url = S.workerUrl ? `${S.workerUrl.replace(/\/$/,'')}/assets/${key}/images/${f}` : '';
+            const url = S.workerUrl ? `${S.workerUrl.replace(/\/$/,'')}/assets/${key}/images/${encodeURIComponent(f)}` : '';
             const selected = currentImg === f;
             return `<div class="img-pick-opt${selected?' selected':''}"
               onclick="selectQImage('${f}')"
