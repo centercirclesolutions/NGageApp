@@ -682,7 +682,15 @@ async function tryLoadFromR2(){
 
       if(imgs.length){
         let ii=0;
-        sub.qs.forEach(q=>{ q.imgPath=imgs[ii%imgs.length]; ii++; });
+        sub.qs.forEach(q=>{
+          // Use per-question assigned image if set
+          if(q.imgFile){
+            q.imgPath = `${WORKER_URL}/assets/${key}/images/${q.imgFile}`;
+          }
+          // Only cycle through available images if question has no specific assignment
+          // AND no imgFile means use emoji — so we leave imgPath unset here
+          ii++;
+        });
       }
 
       if(snds.length){

@@ -1084,6 +1084,39 @@ function showAddQuestionModal(key, editIndex = -1) {
   const q = editIndex >= 0 ? sub.questions[editIndex] : { type:'yn', emoji:'❓', bg:'#F5F5F5', q:'' };
   const isEdit = editIndex >= 0;
 
+  // Build image picker from uploaded images for this subject
+  const images = sub.assets?.images || [];
+  let imagePicker = '';
+  if (images.length) {
+    const currentImg = q.imgFile || '';
+    imagePicker = `
+      <div class="form-group">
+        <label class="form-label">Image (optional)</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px" id="img-picker">
+          <div class="img-pick-opt${!currentImg?' selected':''}" onclick="selectQImage('')"
+            style="width:64px;height:64px;border-radius:8px;border:2px solid var(--border);
+            display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.4rem;
+            ${!currentImg?'border-color:var(--primary);background:var(--primary-light)':''}">
+            🚫
+          </div>
+          ${images.map(f => {
+            const url = S.workerUrl ? `${S.workerUrl.replace(/\/$/,'')}/assets/${key}/images/${f}` : '';
+            const selected = currentImg === f;
+            return `<div class="img-pick-opt${selected?' selected':''}"
+              onclick="selectQImage('${f}')"
+              style="width:64px;height:64px;border-radius:8px;border:2px solid ${selected?'var(--primary)':'var(--border)'};
+              overflow:hidden;cursor:pointer;position:relative;flex-shrink:0;
+              ${selected?'box-shadow:0 0 0 2px var(--primary)':''}">
+              <img src="${url}" style="width:100%;height:100%;object-fit:cover"
+                onerror="this.parentElement.style.display='none'">
+            </div>`;
+          }).join('')}
+        </div>
+        <input type="hidden" id="q-img-file" value="${q.imgFile||''}">
+        <div class="form-hint">Click an image to assign it to this question. Click 🚫 for no image.</div>
+      </div>`;
+  }
+
   showModal(`
     <div class="modal">
       <div class="modal-header">
@@ -1104,9 +1137,10 @@ function showAddQuestionModal(key, editIndex = -1) {
           <label class="form-label">Question Text</label>
           <textarea class="form-input" id="q-text" rows="2">${q.q}</textarea>
         </div>
+        ${imagePicker}
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Emoji</label>
+            <label class="form-label">Fallback Emoji (shown if no image)</label>
             <input class="form-input" id="q-emoji" value="${q.emoji||'❓'}" style="font-size:1.3rem;width:70px">
           </div>
           <div class="form-group">
@@ -1124,6 +1158,19 @@ function showAddQuestionModal(key, editIndex = -1) {
 
   // Pre-fill extra fields
   setTimeout(() => { updateQForm(q); }, 50);
+}
+
+function selectQImage(filename) {
+  document.getElementById('q-img-file').value = filename;
+  // Update visual selection
+  document.querySelectorAll('.img-pick-opt').forEach(el => {
+    el.style.borderColor = 'var(--border)';
+    el.style.boxShadow = '';
+    el.style.background = '';
+  });
+  event.currentTarget.style.borderColor = 'var(--primary)';
+  event.currentTarget.style.boxShadow = '0 0 0 2px var(--primary)';
+  if (!filename) event.currentTarget.style.background = 'var(--primary-light)';
 }
 
 function updateQForm(existing = null) {
@@ -1169,10 +1216,12 @@ function saveQuestion(key, editIndex) {
   const qText = document.getElementById('q-text').value.trim();
   const emoji = document.getElementById('q-emoji').value.trim() || '❓';
   const bg    = document.getElementById('q-bg').value;
+  const imgFile = document.getElementById('q-img-file')?.value || '';
 
   if (!qText) { toast('Question text is required', 'error'); return; }
 
   const q = { type, q: qText, emoji, bg };
+  if (imgFile) q.imgFile = imgFile;
 
   if (type === 'tf') {
     q.ans = document.getElementById('q-ans').value === 'true';
