@@ -1011,14 +1011,80 @@ function deletePerson(key, index) {
   const name = S.subjects[key].people[index]?.name;
   if (!confirm(`Remove ${name}?`)) return;
   S.subjects[key].people.splice(index, 1);
+  // Remove questions generated for this person
+  S.subjects[key].questions = (S.subjects[key].questions||[]).filter(q=>q.personId!==name);
   saveState();
   navigate('subject', key);
 }
 
 // ═══════════════════════════════════════
 //  MESSAGES
-// ═══════════════════════════════════════
-function showAddMessageModal(key) {
+function showEditPersonModal(key, index) {
+  const person = S.subjects[key].people[index];
+  if (!person) return;
+  showModal(`
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Person</h3>
+        <button class="btn btn-ghost btn-icon" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Name</label>
+            <input class="form-input" id="person-name" value="${person.name}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Relationship</label>
+            <input class="form-input" id="person-relation" value="${person.relation||''}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">New Photo (optional — replaces existing)</label>
+          <input type="file" id="person-photo" accept="image/*" class="form-input">
+        </div>
+        <div class="alert alert-info" style="margin-top:8px">
+          Saving will delete and regenerate this person's questions with the latest names and relationships.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditPerson('${key}',${index})">Save</button>
+      </div>
+    </div>`);
+}
+
+async function saveEditPerson(key, index) {
+  const name     = document.getElementById('person-name').value.trim();
+  const relation = document.getElementById('person-relation').value.trim();
+  if (!name) { toast('Name is required', 'error'); return; }
+
+  const person = S.subjects[key].people[index];
+  const oldName = person.name;
+
+  person.name     = name;
+  person.relation = relation;
+
+  const photoFile = document.getElementById('person-photo').files[0];
+  if (photoFile && S.workerUrl) {
+    showLoading('Uploading photo…');
+    const assetKey = `assets/${key}/people/${name.toLowerCase().replace(/\s+/g,'_')}_avatar.jpg`;
+    await uploadAsset(assetKey, photoFile);
+    person.avatar = `${S.workerUrl.replace(/\/$/,'')}/assets/${key}/people/${name.toLowerCase().replace(/\s+/g,'_')}_avatar.jpg`;
+    hideLoading();
+  }
+
+  // Remove old questions for this person and regenerate
+  S.subjects[key].questions = (S.subjects[key].questions||[]).filter(q=>q.personId!==oldName);
+  generatePeopleQuestions(key, person);
+
+  saveState();
+  closeModal();
+  navigate('subject', key);
+  toast(`${name} updated`);
+}
+
+
   showModal(`
     <div class="modal">
       <div class="modal-header">
