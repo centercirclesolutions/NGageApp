@@ -698,6 +698,9 @@ function renderSubject(key) {
       <div class="card-header">
         <h3>👤 People</h3>
         <button class="btn btn-primary btn-sm" onclick="showAddPersonModal('${key}')">+ Add Person</button>
+      </div>
+      <div class="alert alert-info" style="margin-bottom:12px">
+        ℹ️ Two questions are automatically generated per person in the app — <strong>"Who is this?"</strong> and <strong>"This is your…"</strong> — using the names and relationships below. No need to add them manually.
       </div>`;
   if (!hasPeople) {
     html += `<div class="empty" style="padding:24px"><div class="empty-icon">👤</div><p>Add family members to create "Who is this?" questions</p></div>`;
@@ -955,9 +958,6 @@ async function addPerson(key) {
   if (!S.subjects[key].people) S.subjects[key].people = [];
   S.subjects[key].people.push(person);
 
-  // Auto-generate people questions
-  generatePeopleQuestions(key, person);
-
   saveState();
   closeModal();
   navigate('subject', key);
@@ -1085,9 +1085,8 @@ async function saveEditPerson(key, index) {
     hideLoading();
   }
 
-  // Remove old questions for this person and regenerate
+  // Remove old questions for this person (clean up any legacy stored questions)
   S.subjects[key].questions = (S.subjects[key].questions||[]).filter(q=>q.personId!==oldName);
-  generatePeopleQuestions(key, person);
 
   saveState();
   closeModal();

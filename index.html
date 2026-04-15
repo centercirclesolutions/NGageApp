@@ -210,7 +210,7 @@
 // ══════════════════════════════════════════
 //  VERSION — increment this with each deploy
 // ══════════════════════════════════════════
-const VERSION = '1.1.3';
+const VERSION = '1.1.4';
 console.log(`Dad's App v${VERSION}`);
 document.title = `Dad's Happy Time v${VERSION}`;
 
@@ -587,7 +587,10 @@ function renderStep(){
     const bBtn=makeBtn(q.b,'abtn cb-btn',()=>{rec(q,'b');answer('b',q);});
     row.appendChild(flip ? bBtn : aBtn);
     row.appendChild(flip ? aBtn : bBtn);
-    extra.appendChild(makeBtn('👐 Both','abtn extra-btn',()=>{rec(q,'both');answer('both',q);}));
+    // Don't show "Both" for people questions — it doesn't make sense for name/relationship choices
+    if(!q.personId){
+      extra.appendChild(makeBtn('👐 Both','abtn extra-btn',()=>{rec(q,'both');answer('both',q);}));
+    }
   }
 }
 
