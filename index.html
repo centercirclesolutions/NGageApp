@@ -211,7 +211,7 @@
 // ══════════════════════════════════════════
 //  VERSION — increment this with each deploy
 // ══════════════════════════════════════════
-const VERSION = '1.1.0';
+const VERSION = '1.1.1';
 console.log(`Dad's App v${VERSION}`);
 document.title = `Dad's Happy Time v${VERSION}`;
 
@@ -735,109 +735,123 @@ const WORKER_URL = 'https://dads-app-worker.dadsapp.workers.dev';
 // ══════════════════════════════════════════
 async function tryLoadFromR2(){
   try{
-    // Fetch manifest and questions in parallel
     const [mRes, qRes] = await Promise.all([
       fetch(`${WORKER_URL}/api/manifest`),
       fetch(`${WORKER_URL}/api/questions`),
     ]);
 
-    if(!mRes.ok || !qRes.ok) return; // nothing published yet, use defaults
+    if(!mRes.ok || !qRes.ok) return;
 
-    const manifest  = await mRes.json();
-    const questions = await qRes.json();
+    let manifest, questions;
+    try{
+      const mText=await mRes.text(), qText=await qRes.text();
+      if(!mText||mText==='null'||!qText||qText==='null') return;
+      manifest=JSON.parse(mText); questions=JSON.parse(qText);
+    }catch(e){ return; }
+    if(!manifest||!questions) return;
 
-    if(!manifest || !questions) return;
+    if(manifest.defaultMode) appDefaultMode=manifest.defaultMode;
+    if(manifest.appName) document.title=manifest.appName;
 
-    // Set global default mode from manifest
-    if(manifest.defaultMode) appDefaultMode = manifest.defaultMode;
+    // Collect all people across all subjects for distractors
+    const allPeople=[];
+    Object.values(manifest.subjects||{}).forEach(data=>{
+      (data.people||[]).forEach(p=>{ if(p.name&&p.relation) allPeople.push(p); });
+    });
 
-    // Update app name if set
-    if(manifest.appName){
-      document.title = manifest.appName;
-    }
+    Object.entries(manifest.subjects||{}).forEach(([key,data])=>{
+      if(!SUBJECTS[key]) SUBJECTS[key]={icon:data.icon||'📋',color:data.color||'#888',qs:[]};
+      const sub=SUBJECTS[key];
+      if(data.icon)  sub.icon =data.icon;
+      if(data.color) sub.color=data.color;
+      if(data.label) sub.label=data.label;
+      if(data.mode)  sub.mode =data.mode;
 
-    // For each published subject, merge into SUBJECTS
-    Object.entries(manifest.subjects||{}).forEach(([key, data])=>{
-      // If subject doesn't exist in built-ins, create it
-      if(!SUBJECTS[key]){
-        SUBJECTS[key] = { icon: data.icon||'📋', color: data.color||'#888', qs:[] };
-      }
+      if(questions[key]&&questions[key].length>0) sub.qs=questions[key];
 
-      const sub = SUBJECTS[key];
-
-      // Update icon and colour from editor
-      if(data.icon)  sub.icon  = data.icon;
-      if(data.color) sub.color = data.color;
-      if(data.label) sub.label = data.label;
-      if(data.mode)  sub.mode  = data.mode;
-
-      // If editor has published questions for this subject, use them
-      if(questions[key] && questions[key].length > 0){
-        sub.qs = questions[key];
-      }
-
-      // Patch in asset paths from R2 via Worker
-      const assets = data.assets || {};
-      const imgs = (assets.images||[]).map(f=>`${WORKER_URL}/assets/${key}/images/${encodeURIComponent(f)}`);
-      const snds = (assets.sounds||[]).map(f=>`${WORKER_URL}/assets/${key}/sounds/${encodeURIComponent(f)}`);
+      const assets=data.assets||{};
+      const imgs=(assets.images||[]).map(f=>`${WORKER_URL}/assets/${key}/images/${encodeURIComponent(f)}`);
+      const snds=(assets.sounds||[]).map(f=>`${WORKER_URL}/assets/${key}/sounds/${encodeURIComponent(f)}`);
 
       if(imgs.length){
-        let ii=0;
         sub.qs.forEach(q=>{
-          // Use per-question assigned image if set
-          if(q.imgFile){
-            q.imgPath = `${WORKER_URL}/assets/${key}/images/${encodeURIComponent(q.imgFile)}`;
-          }
-          // Only cycle through available images if question has no specific assignment
-          // AND no imgFile means use emoji — so we leave imgPath unset here
-          ii++;
+          if(q.imgFile) q.imgPath=`${WORKER_URL}/assets/${key}/images/${encodeURIComponent(q.imgFile)}`;
         });
       }
 
       if(snds.length){
         sub.qs.filter(q=>q.type==='snd').forEach((q,i)=>{
           const a=document.createElement('audio');
-          const soundKey=`${q.sound}-${key}`;
-          a.id='audio-'+soundKey;
-          a.src=snds[i%snds.length];
-          a.preload='auto';
-          document.body.appendChild(a);
-          q.sound=soundKey;
+          const sk=`${q.sound}-${key}`;
+          a.id='audio-'+sk; a.src=snds[i%snds.length]; a.preload='auto';
+          document.body.appendChild(a); q.sound=sk;
         });
       }
 
-      // People questions — add from manifest
-      if(data.people && data.people.length){
+      // ── People — two questions per person ──────────────────────────────
+      // Q1: "Who is this?" — real name vs random other name (choice)
+      // Q2: "This is your [X]." — correct vs wrong relationship (choice)
+      if(data.people&&data.people.length){
         data.people.forEach(person=>{
-          const personImgs=(person.images||[]).map(f=>`${WORKER_URL}/assets/${key}/people/${f}`);
-          // Add a recognition question per person if not already in questions
+          if(!person.name) return;
           const alreadyHas=sub.qs.some(q=>q.personId===person.name);
-          if(!alreadyHas){
+          if(alreadyHas) return;
+
+          const avatarUrl=person.avatar
+            ? `${WORKER_URL}/assets/${key}/people/${encodeURIComponent(person.avatar.split('/').pop())}`
+            : null;
+
+          // Q1 — Who is this? (name choice)
+          const otherNames=allPeople.filter(p=>p.name!==person.name);
+          const distractor=otherNames.length>0
+            ? otherNames[Math.floor(Math.random()*otherNames.length)].name
+            : '???';
+          sub.qs.push({
+            type:'ch', emoji:'👤', bg:'#FCE4EC',
+            q:'Who is this?',
+            a:person.name, b:distractor,
+            personId:person.name,
+            imgPath:avatarUrl,
+          });
+
+          // Q2 — This is your [relationship]? (relationship choice)
+          if(person.relation){
+            const otherRelations=allPeople
+              .filter(p=>p.name!==person.name&&p.relation&&p.relation!==person.relation)
+              .map(p=>p.relation);
+            const wrongRelation=otherRelations.length>0
+              ? otherRelations[Math.floor(Math.random()*otherRelations.length)]
+              : 'friend';
+            // Randomise which button is correct
+            const correctLeft=Math.random()<0.5;
             sub.qs.push({
-              type:'yn',emoji:'👤',bg:'#FCE4EC',
-              q:`Do you remember ${person.name}?`,
+              type:'ch', emoji:'👤', bg:'#FCE4EC',
+              q:`This is your…`,
+              a:correctLeft ? person.relation : wrongRelation,
+              b:correctLeft ? wrongRelation   : person.relation,
+              correctAnswer:correctLeft ? 'a' : 'b',
               personId:person.name,
-              imgPath: person.avatar || (personImgs[0]||null),
+              imgPath:avatarUrl,
             });
           }
         });
       }
 
-      // Messages — add video questions
-      if(data.messages && data.messages.length){
-        if(!SUBJECTS.messages) SUBJECTS.messages={ icon:'💌', color:'#8B5CF6', qs:[] };
+      // Messages
+      if(data.messages&&data.messages.length){
+        if(!SUBJECTS.messages) SUBJECTS.messages={icon:'💌',color:'#8B5CF6',qs:[]};
         data.messages.forEach(msg=>{
           SUBJECTS.messages.qs.push({
             type:'yn', emoji:'💌', bg:'#F3E5F5',
-            q: msg.question || 'Did you enjoy that message?',
-            videoUrl:`${WORKER_URL}/assets/${key}/messages/${msg.file}`,
-            from: msg.from,
+            q:msg.question||'Did you enjoy that message?',
+            videoUrl:`${WORKER_URL}/assets/${key}/messages/${encodeURIComponent(msg.file)}`,
+            from:msg.from,
           });
         });
       }
     });
 
-  }catch(e){ console.log('R2 load skipped, using built-in questions:', e.message); }
+  }catch(e){ console.log('R2 load skipped:',e.message); }
 }
 
 // ══════════════════════════════════════════
