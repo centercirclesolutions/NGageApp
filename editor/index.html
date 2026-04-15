@@ -928,20 +928,6 @@ function showAddPersonModal(key) {
           <label class="form-label">Photo (optional, used as avatar)</label>
           <input type="file" id="person-photo" accept="image/*" class="form-input">
         </div>
-        <div class="form-group">
-          <label class="form-label">Auto-generate questions for this person</label>
-          <div class="toggle-group">
-            <button class="toggle-option selected" id="pq-both" onclick="selectPQ('both')">
-              <div class="toggle-radio"><div class="toggle-radio-dot"></div></div>
-              <div><div class="toggle-label">Both types</div><div class="toggle-desc">"Who is this?" and "Do you remember?"</div></div>
-            </button>
-            <button class="toggle-option" id="pq-yn" onclick="selectPQ('yn')">
-              <div class="toggle-radio"><div class="toggle-radio-dot"></div></div>
-              <div><div class="toggle-label">Recognition only</div><div class="toggle-desc">"Do you remember this person?"</div></div>
-            </button>
-          </div>
-          <input type="hidden" id="person-qtype" value="both">
-        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
@@ -950,18 +936,12 @@ function showAddPersonModal(key) {
     </div>`);
 }
 
-function selectPQ(v) {
-  document.getElementById('person-qtype').value = v;
-  document.getElementById('pq-both').classList.toggle('selected', v==='both');
-  document.getElementById('pq-yn').classList.toggle('selected', v==='yn');
-}
-
 async function addPerson(key) {
   const name = document.getElementById('person-name').value.trim();
   const relation = document.getElementById('person-relation').value.trim();
   if (!name) { toast('Name is required', 'error'); return; }
 
-  const person = { name, relation, images:[], qtype: document.getElementById('person-qtype').value };
+  const person = { name, relation, images:[] };
 
   const photoFile = document.getElementById('person-photo').files[0];
   if (photoFile && S.workerUrl) {
@@ -988,22 +968,40 @@ function generatePeopleQuestions(key, person) {
   const sub = S.subjects[key];
   if (!sub.questions) sub.questions = [];
 
-  // "Do you remember this person?" yes/no
+  // Collect other people in this subject for distractors
+  const otherPeople = (sub.people || []).filter(p => p.name !== person.name);
+
+  // Q1 — "Who is this?" — name choice
+  const nameDistractor = otherPeople.length > 0
+    ? otherPeople[Math.floor(Math.random() * otherPeople.length)].name
+    : '???';
   sub.questions.push({
-    type: 'yn',
+    type: 'ch',
     emoji: '👤',
     bg: '#FCE4EC',
-    q: `Do you remember ${person.name}?`,
+    q: 'Who is this?',
+    a: person.name,
+    b: nameDistractor,
     personId: person.name,
   });
 
-  if (person.qtype === 'both') {
-    // "Does [name] make you happy?" yes/no
+  // Q2 — "This is your…" — relationship choice
+  if (person.relation) {
+    const otherRelations = otherPeople
+      .filter(p => p.relation && p.relation !== person.relation)
+      .map(p => p.relation);
+    const wrongRelation = otherRelations.length > 0
+      ? otherRelations[Math.floor(Math.random() * otherRelations.length)]
+      : 'friend';
+    const correctLeft = Math.random() < 0.5;
     sub.questions.push({
-      type: 'yn',
-      emoji: '❤️',
+      type: 'ch',
+      emoji: '👤',
       bg: '#FCE4EC',
-      q: `Does ${person.name} make you happy?`,
+      q: 'This is your…',
+      a: correctLeft ? person.relation : wrongRelation,
+      b: correctLeft ? wrongRelation   : person.relation,
+      correctAnswer: correctLeft ? 'a' : 'b',
       personId: person.name,
     });
   }
