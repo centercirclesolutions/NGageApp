@@ -1018,10 +1018,19 @@ function deletePerson(key, index) {
 }
 
 // ═══════════════════════════════════════
-//  MESSAGES
+//  PEOPLE — EDIT
+// ═══════════════════════════════════════
 function showEditPersonModal(key, index) {
   const person = S.subjects[key].people[index];
   if (!person) return;
+
+  const avatarHtml = person.avatar
+    ? `<div class="form-group">
+        <label class="form-label">Current Photo</label>
+        <img src="${person.avatar}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin-top:6px;border:2px solid var(--border)">
+       </div>`
+    : '';
+
   showModal(`
     <div class="modal">
       <div class="modal-header">
@@ -1039,12 +1048,13 @@ function showEditPersonModal(key, index) {
             <input class="form-input" id="person-relation" value="${person.relation||''}">
           </div>
         </div>
+        ${avatarHtml}
         <div class="form-group">
-          <label class="form-label">New Photo (optional — replaces existing)</label>
+          <label class="form-label">${person.avatar ? 'Replace Photo (optional — leave blank to keep current)' : 'Add Photo (optional)'}</label>
           <input type="file" id="person-photo" accept="image/*" class="form-input">
         </div>
         <div class="alert alert-info" style="margin-top:8px">
-          Saving will delete and regenerate this person's questions with the latest names and relationships.
+          Saving will regenerate this person's questions with the latest details.
         </div>
       </div>
       <div class="modal-footer">
@@ -1059,11 +1069,12 @@ async function saveEditPerson(key, index) {
   const relation = document.getElementById('person-relation').value.trim();
   if (!name) { toast('Name is required', 'error'); return; }
 
-  const person = S.subjects[key].people[index];
+  const person  = S.subjects[key].people[index];
   const oldName = person.name;
 
   person.name     = name;
   person.relation = relation;
+  // existing person.avatar is preserved unless a new photo is uploaded
 
   const photoFile = document.getElementById('person-photo').files[0];
   if (photoFile && S.workerUrl) {
